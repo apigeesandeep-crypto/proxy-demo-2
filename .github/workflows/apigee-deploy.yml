@@ -1,0 +1,320 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .github/workflows/apigee-deploy.yml
+#
+# CI/CD pipeline for Apigee API Proxy: proxy-demo-2
+# Repository: proxy-demo (github.com/<YOUR_ORG>/proxy-demo)
+#
+# Required GitHub Secrets:
+#   GCP_PROJECT_ID             – Your GCP project ID that hosts the Apigee eval org
+#   APIGEE_ENV                 – Target Apigee environment name  (e.g. eval)
+#   APIGEE_ORG                 – Apigee organisation name        (usually = GCP project ID)
+#   WORKLOAD_IDENTITY_PROVIDER – Full WIF provider resource name
+#   SERVICE_ACCOUNT_EMAIL      – SA email used for keyless auth
+#
+# GitOps flow (Option B):
+#   Push → scaffold folders committed to repo → XML committed to repo
+#        → lint → zip → deploy to Apigee
+#   GitHub is always the single source of truth.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Apigee Proxy CI/CD – proxy-demo-2
+
+on:
+  push:
+    branches:
+      - test
+    paths:
+      - 'scripts/**'
+      - 'apiproxy/**'
+      - '.github/workflows/apigee-deploy.yml'
+
+env:
+  PROXY_NAME: proxy-demo-2
+  BUNDLE_ZIP: proxy-demo-2.zip
+
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+
+# ── JOB 1 ── Scaffold ────────────────────────────────────────────────────────
+  scaffold:
+    name: 1 · Scaffold Proxy Folder Structure
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write     # needed to push scaffold commit back to repo
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run create_structure.py → create folders in repo
+        run: |
+          echo "==> Running create_structure.py …"
+          python scripts/create_structure.py .
+
+      - name: Verify scaffolded folder tree
+        run: |
+          echo "==> Folder tree:"
+          find apiproxy -type d | sort
+
+      - name: Commit scaffold folders to GitHub repo
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apiproxy/
+          if git diff --cached --quiet; then
+            echo "==> Scaffold folders already exist in repo — nothing to commit."
+          else
+            git commit -m "ci: scaffold proxy-demo-2 folder structure [skip ci]"
+            git push
+            echo "==> Scaffold folders committed and pushed to repo."
+          fi
+
+      - name: Upload scaffolded tree as pipeline artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scaffolded-tree
+          path: apiproxy/
+          retention-days: 1
+
+
+# ── JOB 2 ── Generate XML ────────────────────────────────────────────────────
+  generate-xml:
+    name: 2 · Generate XML File Contents
+    runs-on: ubuntu-latest
+    needs: scaffold
+
+    permissions:
+      contents: write     # needed to push XML commit back to repo
+
+    steps:
+      - name: Checkout repository (includes scaffold commit from Job 1)
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.ref }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run generate_xml.py → write XML files into repo
+        run: |
+          echo "==> Running generate_xml.py …"
+          python scripts/generate_xml.py .
+
+      - name: Display generated XML files
+        run: |
+          echo "==> Generated XML files:"
+          find apiproxy -name "*.xml" | sort
+          echo ""
+          echo "==> Root descriptor:"
+          cat apiproxy/${{ env.PROXY_NAME }}.xml
+          echo ""
+          echo "==> AM-SetRequestHeaders policy:"
+          cat apiproxy/policies/AM-SetRequestHeaders.xml
+          echo ""
+          echo "==> AM-SetResponsePayload policy:"
+          cat apiproxy/policies/AM-SetResponsePayload.xml
+
+      - name: Commit generated XML to GitHub repo
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apiproxy/
+          if git diff --cached --quiet; then
+            echo "==> XML files unchanged — nothing to commit."
+          else
+            git commit -m "ci: generate AssignMessage XML for proxy-demo-2 [skip ci]"
+            git push
+            echo "==> XML files committed and pushed to repo."
+          fi
+
+      - name: Upload proxy bundle source as pipeline artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: proxy-bundle-src
+          path: apiproxy/
+          retention-days: 1
+
+
+# ── JOB 3 ── Lint ────────────────────────────────────────────────────────────
+  lint:
+    name: 3 · Apigee Lint Checks
+    runs-on: ubuntu-latest
+    needs: generate-xml
+
+    steps:
+      - name: Checkout repository (includes XML commit from Job 2)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install apigeelint
+        run: npm install -g apigeelint
+
+      - name: Run apigeelint on apiproxy/
+        run: |
+          echo "==> Running apigeelint …"
+          apigeelint \
+            -s apiproxy \
+            -f table.js \
+            --profile apigee \
+            --exitCode warn
+          echo "==> Lint complete."
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: apiproxy/
+          retention-days: 7
+
+
+# ── JOB 4 ── Package ─────────────────────────────────────────────────────────
+  package:
+    name: 4 · Package & Zip Proxy Bundle
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: Download proxy bundle source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: proxy-bundle-src
+          path: apiproxy/
+
+      - name: Create proxy zip bundle
+        run: |
+          echo "==> Packaging proxy bundle …"
+          zip -r ${{ env.BUNDLE_ZIP }} apiproxy/
+          echo "==> Bundle: ${{ env.BUNDLE_ZIP }}"
+          echo "==> Size  : $(du -sh ${{ env.BUNDLE_ZIP }} | cut -f1)"
+          echo "==> Contents:"
+          unzip -l ${{ env.BUNDLE_ZIP }}
+
+      - name: Upload zipped bundle as pipeline artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: proxy-zip-bundle
+          path: ${{ env.BUNDLE_ZIP }}
+          retention-days: 7
+
+
+# ── JOB 5 ── Deploy ──────────────────────────────────────────────────────────
+  deploy:
+    name: 5 · Deploy to Apigee Eval (Keyless Auth)
+    runs-on: ubuntu-latest
+    needs: package
+
+    permissions:
+      contents: read
+      id-token: write     # required for Workload Identity Federation (keyless)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download zipped proxy bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: proxy-zip-bundle
+
+      - name: Authenticate to GCP via Workload Identity Federation
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT_EMAIL }}
+          token_format: access_token
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Import proxy bundle to Apigee
+        id: import
+        run: |
+          echo "==> Importing ${{ env.BUNDLE_ZIP }} to Apigee org: ${{ secrets.APIGEE_ORG }} …"
+
+          RESPONSE=$(curl -s -X POST \
+            "https://apigee.googleapis.com/v1/organizations/${{ secrets.APIGEE_ORG }}/apis?action=import&name=${{ env.PROXY_NAME }}&validate=true" \
+            -H "Authorization: Bearer ${{ steps.auth.outputs.access_token }}" \
+            -H "Content-Type: multipart/form-data" \
+            -F "file=@${{ env.BUNDLE_ZIP }}")
+
+          echo "==> Import response:"
+          echo "$RESPONSE" | python3 -m json.tool || echo "$RESPONSE"
+
+          REVISION=$(echo "$RESPONSE" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          print(data.get('revision', data.get('name','').split('/')[-1]))
+          " 2>/dev/null || echo "1")
+
+          echo "==> Revision: $REVISION"
+          echo "revision=$REVISION" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy proxy revision to eval environment
+        run: |
+          REVISION="${{ steps.import.outputs.revision }}"
+          echo "==> Deploying revision $REVISION to env: ${{ secrets.APIGEE_ENV }} …"
+
+          RESPONSE=$(curl -s -X POST \
+            "https://apigee.googleapis.com/v1/organizations/${{ secrets.APIGEE_ORG }}/environments/${{ secrets.APIGEE_ENV }}/apis/${{ env.PROXY_NAME }}/revisions/${REVISION}/deployments?override=true" \
+            -H "Authorization: Bearer ${{ steps.auth.outputs.access_token }}" \
+            -H "Content-Length: 0")
+
+          echo "==> Deployment response:"
+          echo "$RESPONSE" | python3 -m json.tool || echo "$RESPONSE"
+
+          STATE=$(echo "$RESPONSE" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          print(data.get('state', 'UNKNOWN'))
+          " 2>/dev/null || echo "UNKNOWN")
+
+          echo "==> State: $STATE"
+
+          if [ "$STATE" = "READY" ] || [ "$STATE" = "PROGRESSING" ]; then
+            echo "==> Deployment initiated successfully."
+          else
+            echo "::warning::Deployment state '$STATE' — verify in Apigee console."
+          fi
+
+      - name: Verify deployment status
+        run: |
+          echo "==> Verifying …"
+
+          RESPONSE=$(curl -s \
+            "https://apigee.googleapis.com/v1/organizations/${{ secrets.APIGEE_ORG }}/environments/${{ secrets.APIGEE_ENV }}/apis/${{ env.PROXY_NAME }}/deployments" \
+            -H "Authorization: Bearer ${{ steps.auth.outputs.access_token }}")
+
+          echo "==> Deployment status:"
+          echo "$RESPONSE" | python3 -m json.tool || echo "$RESPONSE"
+
+      - name: Deployment summary
+        run: |
+          echo "──────────────────────────────────────────"
+          echo "  Proxy Name : ${{ env.PROXY_NAME }}"
+          echo "  Org        : ${{ secrets.APIGEE_ORG }}"
+          echo "  Environment: ${{ secrets.APIGEE_ENV }}"
+          echo "  Revision   : ${{ steps.import.outputs.revision }}"
+          echo "  Triggered by: ${{ github.actor }}"
+          echo "  Commit SHA : ${{ github.sha }}"
+          echo "──────────────────────────────────────────"
