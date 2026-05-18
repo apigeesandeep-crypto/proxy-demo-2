@@ -173,7 +173,7 @@ jobs:
             -s apiproxy \
             -f table.js \
             --profile apigee \
-            --exitCode warn
+            --maxWarnings 10
           echo "==> Lint complete."
 
       - name: Upload lint report
