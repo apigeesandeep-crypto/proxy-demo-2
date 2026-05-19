@@ -18,7 +18,7 @@ def proxy_descriptor_xml() -> str:
         <APIProxy revision="1" name="{PROXY_NAME}">
             <DisplayName>{PROXY_NAME}</DisplayName>
             <Description>Demo proxy updated with basepath (v1) through GitHub Actions</Description>
-            <BasePaths>/{PROXY_NAME}</BasePaths>
+            <BasePaths>/{PROXY_NAME}/v1</BasePaths>
             <Policies>
                 <Policy>AM-SetRequestHeaders</Policy>
                 <Policy>AM-SetResponsePayload</Policy>
