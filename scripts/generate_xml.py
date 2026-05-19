@@ -24,7 +24,7 @@ def proxy_descriptor_xml() -> str:
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <APIProxy revision="1" name="{PROXY_NAME}">
             <DisplayName>{PROXY_NAME}</DisplayName>
-            <Description>Demo API Proxy with AssignMessage policy, deployed via GitHub Actions</Description>
+            <Description>Demo API Proxy with AssignMessage policy, deployed via GitHub Actions (with resource modification)</Description>
             <BasePaths>/{PROXY_NAME}</BasePaths>
             <Policies>
                 <Policy>AM-SetRequestHeaders</Policy>
@@ -47,38 +47,59 @@ def proxy_endpoint_xml() -> str:
     """
     return textwrap.dedent(f"""\
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-        <ProxyEndpoint name="default">
-            <Description>Default Proxy Endpoint – AssignMessage on request and response</Description>
+<ProxyEndpoint name="default">
 
-            <PreFlow name="PreFlow">
-                <Request>
-                    <Step>
-                        <Name>AM-SetRequestHeaders</Name>
-                    </Step>
-                </Request>
-                <Response/>
-            </PreFlow>
+    <Description>
+        Default Proxy Endpoint – AssignMessage on request and response
+    </Description>
 
-            <PostFlow name="PostFlow">
-                <Request/>
-                <Response>
-                    <Step>
-                        <Name>AM-SetResponsePayload</Name>
-                    </Step>
-                </Response>
-            </PostFlow>
+    <PreFlow name="PreFlow">
+        <Request>
+            <Step>
+                <Name>AM-SetRequestHeaders</Name>
+            </Step>
+        </Request>
+        <Response/>
+    </PreFlow>
 
-            <Flows/>
+    <!-- Allow only GET -->
+    <Flows>
 
-            <HTTPProxyConnection>
-                <BasePath>/{PROXY_NAME}</BasePath>
-                <VirtualHost>secure</VirtualHost>
-            </HTTPProxyConnection>
+        <Flow name="Allow-GET">
+            <Condition>(request.verb = "GET")</Condition>
+        </Flow>
 
-            <RouteRule name="default">
-                <TargetEndpoint>default</TargetEndpoint>
-            </RouteRule>
-        </ProxyEndpoint>
+        <Flow name="Reject-NonGET">
+            <Condition>(request.verb != "GET")</Condition>
+
+            <Request>
+                <Step>
+                    <Name>RF-MethodNotAllowed</Name>
+                </Step>
+            </Request>
+        </Flow>
+
+    </Flows>
+
+    <PostFlow name="PostFlow">
+        <Request/>
+        <Response>
+            <Step>
+                <Name>AM-SetResponsePayload</Name>
+            </Step>
+        </Response>
+    </PostFlow>
+
+    <HTTPProxyConnection>
+        <BasePath>/{PROXY_NAME}</BasePath>
+        <VirtualHost>secure</VirtualHost>
+    </HTTPProxyConnection>
+
+    <RouteRule name="default">
+        <TargetEndpoint>default</TargetEndpoint>
+    </RouteRule>
+
+</ProxyEndpoint>
     """)
 
 
