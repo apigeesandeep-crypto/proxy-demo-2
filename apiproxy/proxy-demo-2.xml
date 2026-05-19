@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <APIProxy revision="1" name="proxy-demo-2">
     <DisplayName>proxy-demo-2</DisplayName>
-    <Description>Demo proxy deployed via Maven plugin from GitHub Actions</Description>
+    <Description>Updated Demo proxy basepath with v1 from GitHub Actions</Description>
     <BasePaths>/proxy-demo-2</BasePaths>
     <Policies>
         <Policy>AM-SetRequestHeaders</Policy>
