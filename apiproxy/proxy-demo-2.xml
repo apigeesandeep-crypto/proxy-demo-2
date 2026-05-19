@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <APIProxy revision="1" name="proxy-demo-2">
     <DisplayName>proxy-demo-2</DisplayName>
-    <Description>Demo API Proxy with AssignMessage policy, deployed via GitHub Actions (with resource modification)</Description>
+    <Description>Demo API Proxy with AssignMessage policies</Description>
     <BasePaths>/proxy-demo-2</BasePaths>
+
     <Policies>
         <Policy>AM-SetRequestHeaders</Policy>
         <Policy>AM-SetResponsePayload</Policy>
+        <Policy>RF-MethodNotAllowed</Policy>
     </Policies>
+
     <ProxyEndpoints>
         <ProxyEndpoint>default</ProxyEndpoint>
     </ProxyEndpoints>
+
     <TargetEndpoints>
         <TargetEndpoint>default</TargetEndpoint>
     </TargetEndpoints>

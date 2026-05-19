@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <AssignMessage name="AM-SetRequestHeaders" continueOnError="false" enabled="true">
     <DisplayName>AM-SetRequestHeaders</DisplayName>
+
     <Add>
         <Headers>
             <Header name="X-Proxy-Name">proxy-demo-2</Header>
@@ -9,12 +10,13 @@
             <Header name="X-Environment">{environment.name}</Header>
         </Headers>
     </Add>
+
     <Remove>
         <Headers>
-            <!-- Strip any internal auth header the client may have sent -->
             <Header name="X-Internal-Token"/>
         </Headers>
     </Remove>
+
     <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
     <AssignTo createNew="false" transport="http" type="request"/>
 </AssignMessage>

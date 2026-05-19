@@ -1,9 +1,7 @@
-        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <ProxyEndpoint name="default">
 
-    <Description>
-        Default Proxy Endpoint – AssignMessage on request and response
-    </Description>
+    <Description>Default Proxy Endpoint – request/response AssignMessage</Description>
 
     <PreFlow name="PreFlow">
         <Request>
@@ -14,7 +12,6 @@
         <Response/>
     </PreFlow>
 
-    <!-- Allow only GET -->
     <Flows>
 
         <Flow name="Allow-GET">
@@ -23,7 +20,6 @@
 
         <Flow name="Reject-NonGET">
             <Condition>(request.verb != "GET")</Condition>
-
             <Request>
                 <Step>
                     <Name>RF-MethodNotAllowed</Name>
