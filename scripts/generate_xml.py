@@ -17,7 +17,7 @@ def proxy_descriptor_xml() -> str:
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <APIProxy revision="1" name="{PROXY_NAME}">
             <DisplayName>{PROXY_NAME}</DisplayName>
-            <Description>Demo proxy deployed via Maven plugin from GitHub Actions</Description>
+            <Description>Demo proxy updated with basepath (v1) through GitHub Actions</Description>
             <BasePaths>/{PROXY_NAME}</BasePaths>
             <Policies>
                 <Policy>AM-SetRequestHeaders</Policy>
@@ -60,7 +60,7 @@ def proxy_endpoint_xml() -> str:
             <Flows/>
 
             <HTTPProxyConnection>
-                <BasePath>/{PROXY_NAME}</BasePath>
+                <BasePath>/{PROXY_NAME}/v1</BasePath>
                 <VirtualHost>secure</VirtualHost>
             </HTTPProxyConnection>
 
