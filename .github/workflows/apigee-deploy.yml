@@ -22,7 +22,7 @@ name: Apigee Proxy CI/CD – proxy-demo-2
 on:
   push:
     branches:
-      - t
+      - test
     paths:
       - 'scripts/**'
       - 'apiproxy/**'
