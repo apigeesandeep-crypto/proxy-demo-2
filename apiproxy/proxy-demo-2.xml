@@ -2,7 +2,7 @@
 <APIProxy revision="1" name="proxy-demo-2">
     <DisplayName>proxy-demo-2</DisplayName>
     <Description>Demo proxy updated with basepath (v1) through GitHub Actions</Description>
-    <BasePaths>/proxy-demo-2</BasePaths>
+    <BasePaths>/proxy-demo-2/v1</BasePaths>
     <Policies>
         <Policy>AM-SetRequestHeaders</Policy>
         <Policy>AM-SetResponsePayload</Policy>
