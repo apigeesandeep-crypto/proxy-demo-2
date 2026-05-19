@@ -2,9 +2,6 @@
 """
 generate_xml.py
 Generates all required XML configuration files for the Apigee proxy-demo-2 bundle.
-Proxy uses AssignMessage policies to:
-  - Set request headers before forwarding to target
-  - Set a standard JSON response with status, path and custom header info
 """
 
 import os
@@ -19,20 +16,23 @@ PROXY_NAME = "proxy-demo-2"
 # ─────────────────────────────────────────────
 
 def proxy_descriptor_xml() -> str:
-    """Root proxy descriptor: apiproxy/proxy-demo-2.xml"""
     return textwrap.dedent(f"""\
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <APIProxy revision="1" name="{PROXY_NAME}">
             <DisplayName>{PROXY_NAME}</DisplayName>
-            <Description>Demo API Proxy with AssignMessage policy, deployed via GitHub Actions (with resource modification)</Description>
+            <Description>Demo API Proxy with AssignMessage policies</Description>
             <BasePaths>/{PROXY_NAME}</BasePaths>
+
             <Policies>
                 <Policy>AM-SetRequestHeaders</Policy>
                 <Policy>AM-SetResponsePayload</Policy>
+                <Policy>RF-MethodNotAllowed</Policy>
             </Policies>
+
             <ProxyEndpoints>
                 <ProxyEndpoint>default</ProxyEndpoint>
             </ProxyEndpoints>
+
             <TargetEndpoints>
                 <TargetEndpoint>default</TargetEndpoint>
             </TargetEndpoints>
@@ -41,70 +41,61 @@ def proxy_descriptor_xml() -> str:
 
 
 def proxy_endpoint_xml() -> str:
-    """Proxy endpoint: apiproxy/proxies/default.xml
-    AM-SetRequestHeaders  → runs in PreFlow Request  (adds headers before hitting target)
-    AM-SetResponsePayload → runs in PostFlow Response (shapes the response back to client)
-    """
     return textwrap.dedent(f"""\
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<ProxyEndpoint name="default">
+        <ProxyEndpoint name="default">
 
-    <Description>
-        Default Proxy Endpoint – AssignMessage on request and response
-    </Description>
+            <Description>Default Proxy Endpoint – request/response AssignMessage</Description>
 
-    <PreFlow name="PreFlow">
-        <Request>
-            <Step>
-                <Name>AM-SetRequestHeaders</Name>
-            </Step>
-        </Request>
-        <Response/>
-    </PreFlow>
+            <PreFlow name="PreFlow">
+                <Request>
+                    <Step>
+                        <Name>AM-SetRequestHeaders</Name>
+                    </Step>
+                </Request>
+                <Response/>
+            </PreFlow>
 
-    <!-- Allow only GET -->
-    <Flows>
+            <Flows>
 
-        <Flow name="Allow-GET">
-            <Condition>(request.verb = "GET")</Condition>
-        </Flow>
+                <Flow name="Allow-GET">
+                    <Condition>(request.verb = "GET")</Condition>
+                </Flow>
 
-        <Flow name="Reject-NonGET">
-            <Condition>(request.verb != "GET")</Condition>
+                <Flow name="Reject-NonGET">
+                    <Condition>(request.verb != "GET")</Condition>
+                    <Request>
+                        <Step>
+                            <Name>RF-MethodNotAllowed</Name>
+                        </Step>
+                    </Request>
+                </Flow>
 
-            <Request>
-                <Step>
-                    <Name>RF-MethodNotAllowed</Name>
-                </Step>
-            </Request>
-        </Flow>
+            </Flows>
 
-    </Flows>
+            <PostFlow name="PostFlow">
+                <Request/>
+                <Response>
+                    <Step>
+                        <Name>AM-SetResponsePayload</Name>
+                    </Step>
+                </Response>
+            </PostFlow>
 
-    <PostFlow name="PostFlow">
-        <Request/>
-        <Response>
-            <Step>
-                <Name>AM-SetResponsePayload</Name>
-            </Step>
-        </Response>
-    </PostFlow>
+            <HTTPProxyConnection>
+                <BasePath>/{PROXY_NAME}</BasePath>
+                <VirtualHost>secure</VirtualHost>
+            </HTTPProxyConnection>
 
-    <HTTPProxyConnection>
-        <BasePath>/{PROXY_NAME}</BasePath>
-        <VirtualHost>secure</VirtualHost>
-    </HTTPProxyConnection>
+            <RouteRule name="default">
+                <TargetEndpoint>default</TargetEndpoint>
+            </RouteRule>
 
-    <RouteRule name="default">
-        <TargetEndpoint>default</TargetEndpoint>
-    </RouteRule>
-
-</ProxyEndpoint>
+        </ProxyEndpoint>
     """)
 
 
 def target_endpoint_xml() -> str:
-    """Target endpoint: apiproxy/targets/default.xml"""
     return textwrap.dedent("""\
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <TargetEndpoint name="default">
@@ -128,13 +119,11 @@ def target_endpoint_xml() -> str:
 
 
 def assign_message_request_xml() -> str:
-    """AssignMessage – set outbound request headers: apiproxy/policies/AM-SetRequestHeaders.xml
-    Adds custom headers to the request before it reaches the backend target.
-    """
     return textwrap.dedent("""\
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <AssignMessage name="AM-SetRequestHeaders" continueOnError="false" enabled="true">
             <DisplayName>AM-SetRequestHeaders</DisplayName>
+
             <Add>
                 <Headers>
                     <Header name="X-Proxy-Name">proxy-demo-2</Header>
@@ -143,12 +132,13 @@ def assign_message_request_xml() -> str:
                     <Header name="X-Environment">{environment.name}</Header>
                 </Headers>
             </Add>
+
             <Remove>
                 <Headers>
-                    <!-- Strip any internal auth header the client may have sent -->
                     <Header name="X-Internal-Token"/>
                 </Headers>
             </Remove>
+
             <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
             <AssignTo createNew="false" transport="http" type="request"/>
         </AssignMessage>
@@ -156,19 +146,17 @@ def assign_message_request_xml() -> str:
 
 
 def assign_message_response_xml() -> str:
-    """AssignMessage – set response payload: apiproxy/policies/AM-SetResponsePayload.xml
-    Overwrites the response body with a structured JSON envelope and sets
-    the correct Content-Type header.
-    """
     return textwrap.dedent("""\
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <AssignMessage name="AM-SetResponsePayload" continueOnError="false" enabled="true">
             <DisplayName>AM-SetResponsePayload</DisplayName>
+
             <Set>
                 <Headers>
                     <Header name="Content-Type">application/json</Header>
                     <Header name="X-Powered-By">Apigee</Header>
                 </Headers>
+
                 <Payload contentType="application/json">
                     {
                         "status": "success",
@@ -180,11 +168,43 @@ def assign_message_response_xml() -> str:
                         "target": "{target.url}"
                     }
                 </Payload>
+
                 <StatusCode>200</StatusCode>
                 <ReasonPhrase>OK</ReasonPhrase>
             </Set>
+
             <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
             <AssignTo createNew="false" transport="http" type="response"/>
+        </AssignMessage>
+    """)
+
+
+def rf_method_not_allowed_xml() -> str:
+    """New policy: RF-MethodNotAllowed (405 response)"""
+    return textwrap.dedent("""\
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <AssignMessage name="RF-MethodNotAllowed" continueOnError="false" enabled="true">
+            <DisplayName>RF-MethodNotAllowed</DisplayName>
+
+            <Set>
+                <Headers>
+                    <Header name="Content-Type">application/json</Header>
+                </Headers>
+
+                <Payload contentType="application/json">
+                    {
+                        "error": "Method Not Allowed",
+                        "allowed": "GET",
+                        "received": "{request.verb}"
+                    }
+                </Payload>
+
+                <StatusCode>405</StatusCode>
+                <ReasonPhrase>Method Not Allowed</ReasonPhrase>
+            </Set>
+
+            <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+            <AssignTo createNew="true" transport="http" type="response"/>
         </AssignMessage>
     """)
 
@@ -194,11 +214,12 @@ def assign_message_response_xml() -> str:
 # ─────────────────────────────────────────────
 
 FILE_MANIFEST = [
-    (f"apiproxy/{PROXY_NAME}.xml",                      proxy_descriptor_xml),
-    ("apiproxy/proxies/default.xml",                    proxy_endpoint_xml),
-    ("apiproxy/targets/default.xml",                    target_endpoint_xml),
-    ("apiproxy/policies/AM-SetRequestHeaders.xml",      assign_message_request_xml),
-    ("apiproxy/policies/AM-SetResponsePayload.xml",     assign_message_response_xml),
+    (f"apiproxy/{PROXY_NAME}.xml", proxy_descriptor_xml),
+    ("apiproxy/proxies/default.xml", proxy_endpoint_xml),
+    ("apiproxy/targets/default.xml", target_endpoint_xml),
+    ("apiproxy/policies/AM-SetRequestHeaders.xml", assign_message_request_xml),
+    ("apiproxy/policies/AM-SetResponsePayload.xml", assign_message_response_xml),
+    ("apiproxy/policies/RF-MethodNotAllowed.xml", rf_method_not_allowed_xml),
 ]
 
 
@@ -206,9 +227,8 @@ def write_files(base_path: str = ".") -> None:
     for relative_path, content_fn in FILE_MANIFEST:
         full_path = os.path.join(base_path, relative_path)
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
-        content = content_fn()
         with open(full_path, "w", encoding="utf-8") as fh:
-            fh.write(content)
+            fh.write(content_fn())
         print(f"[OK] Written: {full_path}")
 
 
