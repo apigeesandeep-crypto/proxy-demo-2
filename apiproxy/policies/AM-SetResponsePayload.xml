@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<AssignMessage name="AM-SetResponsePayload" continueOnError="false" enabled="true">
+    <DisplayName>AM-SetResponsePayload</DisplayName>
+    <Set>
+        <Headers>
+            <Header name="Content-Type">application/json</Header>
+            <Header name="X-Powered-By">Apigee</Header>
+        </Headers>
+        <Payload contentType="application/json">
+            {
+                "status": "success",
+                "proxy": "{proxy.name}",
+                "path": "{proxy.pathsuffix}",
+                "method": "{request.verb}",
+                "messageId": "{messageid}",
+                "environment": "{environment.name}"
+            }
+        </Payload>
+        <StatusCode>200</StatusCode>
+        <ReasonPhrase>OK</ReasonPhrase>
+    </Set>
+    <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+    <AssignTo createNew="false" transport="http" type="response"/>
+</AssignMessage>

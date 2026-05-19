@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<AssignMessage name="AM-SetRequestHeaders" continueOnError="false" enabled="true">
+    <DisplayName>AM-SetRequestHeaders</DisplayName>
+    <Add>
+        <Headers>
+            <Header name="X-Proxy-Name">proxy-demo-maven</Header>
+            <Header name="X-Forwarded-By">apigee-gateway</Header>
+            <Header name="X-Request-ID">{messageid}</Header>
+            <Header name="X-Environment">{environment.name}</Header>
+        </Headers>
+    </Add>
+    <Remove>
+        <Headers>
+            <Header name="X-Internal-Token"/>
+        </Headers>
+    </Remove>
+    <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+    <AssignTo createNew="false" transport="http" type="request"/>
+</AssignMessage>
