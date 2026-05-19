@@ -9,7 +9,7 @@ import os
 import sys
 import textwrap
 
-PROXY_NAME = "proxy-demo-maven"
+PROXY_NAME = "proxy-demo-2"
 
 
 def proxy_descriptor_xml() -> str:
