@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<APIProxy revision="1" name="proxy-demo-maven">
+    <DisplayName>proxy-demo-maven</DisplayName>
+    <Description>Demo proxy deployed via Maven plugin from GitHub Actions</Description>
+    <BasePaths>/proxy-demo-maven</BasePaths>
+    <Policies>
+        <Policy>AM-SetRequestHeaders</Policy>
+        <Policy>AM-SetResponsePayload</Policy>
+    </Policies>
+    <ProxyEndpoints>
+        <ProxyEndpoint>default</ProxyEndpoint>
+    </ProxyEndpoints>
+    <TargetEndpoints>
+        <TargetEndpoint>default</TargetEndpoint>
+    </TargetEndpoints>
+</APIProxy>
