@@ -23,7 +23,7 @@
     <Flows/>
 
     <HTTPProxyConnection>
-        <BasePath>/proxy-demo-maven</BasePath>
+        <BasePath>/proxy-demo-2</BasePath>
         <VirtualHost>secure</VirtualHost>
     </HTTPProxyConnection>
 
