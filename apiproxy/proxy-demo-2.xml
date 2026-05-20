@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <APIProxy revision="1" name="proxy-demo-2">
     <DisplayName>proxy-demo-2</DisplayName>
-    <Description>Demo proxy updated with basepath (v1) through GitHub Actions</Description>
-    <BasePaths>/proxy-demo-2/v1</BasePaths>
+    <Description>Demo proxy updated with basepath (v2) through GitHub Actions</Description>
+    <BasePaths>/proxy-demo-2/v2</BasePaths>
     <Policies>
         <Policy>AM-SetRequestHeaders</Policy>
         <Policy>AM-SetResponsePayload</Policy>
